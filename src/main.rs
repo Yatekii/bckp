@@ -1,5 +1,7 @@
 extern crate flate2;
 
+mod slicer;
+
 use std::io::prelude::*;
 use std::fs::File;
 use std::io::SeekFrom;
@@ -24,6 +26,8 @@ fn main(){
 
     let mut chunks = Vec::<u64>::new();
     let mut window = VecDeque::<u8>::new();
+
+    let s = slicer::Slicer::new("KEK");
 
     res = f.read(&mut buffer);
     match res {
