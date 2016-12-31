@@ -1,0 +1,8 @@
+[package]
+
+name = "bckp"
+version = "0.1.0"
+authors = ["Yatekii <yatekii@yatekii.ch>"]
+
+[dependencies]
+flate2 = "0.2.14"
