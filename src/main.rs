@@ -27,8 +27,6 @@ fn main(){
     let mut chunks = Vec::<u64>::new();
     let mut window = VecDeque::<u8>::new();
 
-    let s = slicer::Slicer::new("KEK");
-
     res = f.read(&mut buffer);
     match res {
         Ok(v) => n = v as u64,
@@ -55,7 +53,8 @@ fn main(){
             // Initial window filled, so check first sum
             if 0 == sum % modulo {
                 let last = *chunks.last().unwrap_or(&0);
-                write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
+                println!("{:?}", (last, total));
+                //write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
 
                 chunks.push(total);
             }
@@ -75,7 +74,8 @@ fn main(){
                     if 0 == sum % modulo {
                         let last = *chunks.last().unwrap_or(&0);
                         ckto += total + (i as u64) - last;
-                        write_compressed_chunk(total + (i as u64), last as u64, "testfile".to_string(), format!("file_{}", total + (i as u64)));
+                        println!("{:?}", (last, total + (i as u64)));
+                        //write_compressed_chunk(total + (i as u64), last as u64, "testfile".to_string(), format!("file_{}", total + (i as u64)));
 
                         chunks.push(total + (i as u64));
                     }
@@ -93,13 +93,13 @@ fn main(){
     let last = *chunks.last().unwrap_or(&0);
     ckto += total - last;
 
-    write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
+    println!("{:?}", (last, total));
+    //write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
 
     chunks.push(total);
-    println!("{:?}", chunks);
-    println!("{}", ckto);
-
-    write_compressed_chunk(total, 0, "testfile".to_string(), "KEK".to_string());
+    //println!("{:?}", chunks);
+    //println!("{}", ckto);
+    //write_compressed_chunk(total, 0, "testfile".to_string(), "KEK".to_string());
 
 }
 
