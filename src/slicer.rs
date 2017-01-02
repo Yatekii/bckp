@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::iter::Iterator;
 use std::io::Read;
+use std::fs::metadata;
 
 
 const WINDOW_SIZE: usize = 1 << 13;
@@ -10,25 +11,37 @@ pub struct Slicer {
     file: File,
     window_start: usize,
     sum: u64,
-    bytes: Vec<Box<[u8; WINDOW_SIZE]>>,
+    bytes: Vec<Vec<u8>>,
     chunk_start: usize,
     chunk_stop: usize,
     done: bool,
     read_err: bool,
+    size: usize,
+    read_n: usize,
 }
 
 impl Slicer {
     pub fn new(file: &str) -> Slicer {
         // Init
-        let mut buf: Box<[u8; WINDOW_SIZE]> = Box::new([0; WINDOW_SIZE]);
-        let mut vec: Vec <Box<[u8; WINDOW_SIZE]>> = Vec::<Box<[u8; WINDOW_SIZE]>>::with_capacity(10);
+        let mut buf = vec![0; WINDOW_SIZE];
+        let mut vec = Vec::<Vec<u8>>::with_capacity(10);
         let mut done = false;
         let mut sum: u64 = 0;
         let mut read_err = false;
+        let meta = metadata(file);
+        let size = match meta {
+            Ok(v) => {
+                v.len() as usize
+            },
+            Err(_) => {
+                read_err = true;
+                0
+            }
+        };
 
         // Open file and read first bytes to the buffer to fill the window
         let mut f = File::open(file).expect("");
-        let res = match f.read_exact(&mut *buf) {
+        let res = match f.read_exact(buf.as_mut_slice()) {
             Ok(_) => {
                 WINDOW_SIZE
             },
@@ -58,6 +71,8 @@ impl Slicer {
             bytes: vec,
             done: done,
             read_err: read_err,
+            size: size,
+            read_n: WINDOW_SIZE,
         }
     }
 }
@@ -71,11 +86,11 @@ impl Iterator for Slicer {
 
             if remaining == 0 {
                 if !self.done {
-                        // Old samples done, fetch new ones
-                        let mut buf: Box<[u8; WINDOW_SIZE]> = Box::new([0; WINDOW_SIZE]);
-                        let res = match self.file.read_exact(&mut *buf) {
-                            Ok(_) => {
-                                WINDOW_SIZE
+                    if self.size - self.read_n < WINDOW_SIZE {
+                        let mut buf = vec![0; WINDOW_SIZE];
+                        let res = match self.file.read_to_end(&mut buf) {
+                            Ok(n) => {
+                                n
                             },
                             Err(_) => {
                                 self.read_err = true;
@@ -86,9 +101,26 @@ impl Iterator for Slicer {
                             return None;
                         }
                         self.bytes.push(buf);
-                        remaining = WINDOW_SIZE;
+                        remaining = res;
+                    } else {
+                    // Old samples done, fetch new ones
+                        let mut buf = vec![0; WINDOW_SIZE];
+                        let res = match self.file.read_exact(buf.as_mut_slice()) {
+                            Ok(_) => {
+                                self.read_n += WINDOW_SIZE;
+                                WINDOW_SIZE
+                            },
+                            Err(_) => {
+                                0
+                            },
+                        };
+                        if res == 0 {
+                            return None;
+                        }
+                        self.bytes.push(buf);
+                        remaining = res;
                     }
-                else {
+                } else {
                     return None;
                 }
             }
