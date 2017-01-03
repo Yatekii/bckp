@@ -53,7 +53,7 @@ fn main(){
             // Initial window filled, so check first sum
             if 0 == sum % modulo {
                 let last = *chunks.last().unwrap_or(&0);
-                println!("{:?}", (last, total));
+                //println!("{:?}", (last, total));
                 //write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
 
                 chunks.push(total);
@@ -74,7 +74,7 @@ fn main(){
                     if 0 == sum % modulo {
                         let last = *chunks.last().unwrap_or(&0);
                         ckto += total + (i as u64) - last;
-                        println!("{:?}", (last, total + (i as u64)));
+                        //println!("{:?}", (last, total + (i as u64)));
                         //write_compressed_chunk(total + (i as u64), last as u64, "testfile".to_string(), format!("file_{}", total + (i as u64)));
 
                         chunks.push(total + (i as u64));
@@ -93,13 +93,14 @@ fn main(){
     let last = *chunks.last().unwrap_or(&0);
     ckto += total - last;
 
-    println!("{:?}", (last, total));
+    //println!("{:?}", (last, total));
     //write_compressed_chunk(total as u64, last as u64, "testfile".to_string(), format!("file_{}", total));
 
     chunks.push(total);
     //println!("{:?}", chunks);
     //println!("{}", ckto);
     //write_compressed_chunk(total, 0, "testfile".to_string(), "KEK".to_string());
+    println!("DONE");
 
 }
 

@@ -6,3 +6,4 @@ authors = ["Yatekii <yatekii@yatekii.ch>"]
 
 [dependencies]
 flate2 = "0.2.14"
+ring = "0.6.1"
