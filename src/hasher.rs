@@ -1,4 +1,4 @@
-extern crate ring;
+/*extern crate ring;
 extern crate flate2;
 
 use slicer;
@@ -49,3 +49,4 @@ fn write_compressed_chunk(total: u64, last: u64, src_file: String, trg_file: Str
     let _ = encoder.write(buf.as_slice());
     let _ = uncompressed_file.write(buf.as_slice());
 }
+*/

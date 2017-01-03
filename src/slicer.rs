@@ -2,8 +2,13 @@ use std::fs::File;
 use std::iter::Iterator;
 use std::io::Read;
 use std::fs::metadata;
-use std::collections:VecDeque;
+use std::collections::VecDeque;
 
+// Yatekii: Okay, so I'd suggest: when you detect the end of a chunk,
+// use Vec::split_off to get a new vector holding the tail that isn't
+// part of that chunk, and remove that tail from your buffer; then use
+// std::mem::swap to exchange the new tail vector with self.chunk,
+// and then return the chunk.
 
 pub const WINDOW_SIZE: usize = 1 << 13;
 pub const MODULO: u64 = 1 << 12;
@@ -25,7 +30,6 @@ impl Slicer {
     pub fn new(file: &str) -> Slicer {
         // Init
         let mut window = VecDeque::<u8>::with_capacity(WINDOW_SIZE);
-        let mut chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
         let mut done = false;
         let mut sum: u64 = 0;
         let mut read_err = false;
@@ -38,26 +42,11 @@ impl Slicer {
 
         // Open file and read first bytes to the buffer to fill the window
         let mut f = File::open(file).expect("");
-        let res = match f.read(&buf) {
-            Ok(n) => { n },
-            Err(_) => { read_err = true; 0 },
-        };
-        if res == 0 {
-            done = true;
-        }
-
-        // Calculate initial sum
-        for i in 0..res {
-            sum += buf[i] as u64;
-            chunk.push(buf[i]);
-            window.push_back(buf[i]);
-        }
 
         // Create initialized structure
         Slicer {
             file: f,
             window: window,
-            chunk: chunk,
             buffer: buf,
             pos: res,
             sum: sum,
@@ -70,14 +59,15 @@ impl Slicer {
 }
 
 impl Iterator for Slicer {
-    type Item = (usize, usize);
+    type Item = Vec<u8>;
     
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let mut remaining = WINDOW_SIZE - pos;
+            let mut remaining = self.buffer.len() - self.pos;
 
-            if remaining == 0 {
-                if !self.done {
+            if !self.done {
+                if remaining == 0 {
+                    self.chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
                     let res = match self.file.read(&mut self.buffer) {
                         Ok(n) => { n },
                         Err(_) => { self.read_err = true; 0 },
@@ -85,37 +75,27 @@ impl Iterator for Slicer {
                     if res == 0 {
                         return None;
                     }
-                    self.bytes.push(buf);
-                } else {
-                    return None;
                 }
+            } else {
+                return None;
             }
 
-            for _ in 0..remaining {
+            while self.pos < self.buffer.len() {
                 // Calculate new sum
-                let mut offset = self.window_start / WINDOW_SIZE;
-                let mut pos = self.window_start % WINDOW_SIZE;
-
-                self.sum -= self.bytes[offset][pos] as u64;
-
-                self.window_start += 1;
-                self.chunk_stop += 1;
-
-                offset = self.chunk_stop / WINDOW_SIZE;
-                pos = self.chunk_stop % WINDOW_SIZE;
-                
-                self.sum += self.bytes[offset][pos] as u64;
+                self.sum += self.buffer[self.pos] as u64;
+                self.chunk.push(self.buffer[self.pos]);
+                self.window.push_back(self.buffer[self.pos]);
+                self.sum -= self.window.pop_front().unwrap() as u64;
                 
                 if self.sum % MODULO == 0 {
-                    let start = self.chunk_start;
-                    self.chunk_start = self.chunk_stop + 1;
-                    return Some((start, self.chunk_stop));
+                    return Some(self.chunk);
                 }
             }
 
             if self.done {
-                return Some((self.chunk_start, self.chunk_stop));
+                return Some(self.chunk);
             }
+            self.pos += 1;
         }
     }
 }
