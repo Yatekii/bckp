@@ -2,6 +2,7 @@ use std::fs::File;
 use std::iter::Iterator;
 use std::io::Read;
 use std::fs::metadata;
+use std::collections:VecDeque;
 
 
 pub const WINDOW_SIZE: usize = 1 << 13;
@@ -9,11 +10,11 @@ pub const MODULO: u64 = 1 << 12;
 
 pub struct Slicer {
     file: File,
-    window_start: usize,
     sum: u64,
-    pub bytes: Vec<Vec<u8>>,
-    chunk_start: usize,
-    chunk_stop: usize,
+    window: VecDeque<u8>,
+    chunk: Vec<u8>,
+    buffer: [u8; WINDOW_SIZE],
+    pos: usize,
     done: bool,
     read_err: bool,
     size: usize,
@@ -23,52 +24,43 @@ pub struct Slicer {
 impl Slicer {
     pub fn new(file: &str) -> Slicer {
         // Init
-        let mut buf = vec![0; WINDOW_SIZE];
-        let mut vec = Vec::<Vec<u8>>::with_capacity(10);
+        let mut window = VecDeque::<u8>::with_capacity(WINDOW_SIZE);
+        let mut chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
         let mut done = false;
         let mut sum: u64 = 0;
         let mut read_err = false;
+        let mut buf = [0 as u8; WINDOW_SIZE];
         let meta = metadata(file);
         let size = match meta {
-            Ok(v) => {
-                v.len() as usize
-            },
-            Err(_) => {
-                read_err = true;
-                0
-            }
+            Ok(v) => { v.len() as usize },
+            Err(_) => { read_err = true; 0 }
         };
 
         // Open file and read first bytes to the buffer to fill the window
         let mut f = File::open(file).expect("");
-        let res = match f.read_exact(buf.as_mut_slice()) {
-            Ok(_) => {
-                WINDOW_SIZE
-            },
-            Err(_) => {
-                read_err = true;
-                0
-            },
+        let res = match f.read(&buf) {
+            Ok(n) => { n },
+            Err(_) => { read_err = true; 0 },
         };
         if res == 0 {
             done = true;
         }
 
-        // Fill the window initially
-        for i in 0..WINDOW_SIZE {
+        // Calculate initial sum
+        for i in 0..res {
             sum += buf[i] as u64;
+            chunk.push(buf[i]);
+            window.push_back(buf[i]);
         }
-
-        vec.push(buf);
 
         // Create initialized structure
         Slicer {
             file: f,
-            window_start: 0,
-            chunk_start: 0,
-            chunk_stop: WINDOW_SIZE - 1,
+            window: window,
+            chunk: chunk,
+            buffer: buf,
+            pos: res,
             sum: sum,
-            bytes: vec,
             done: done,
             read_err: read_err,
             size: size,
@@ -82,34 +74,18 @@ impl Iterator for Slicer {
     
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let mut remaining = self.read_n - self.chunk_stop - 1;
+            let mut remaining = WINDOW_SIZE - pos;
 
             if remaining == 0 {
                 if !self.done {
-                    if self.size - self.read_n < WINDOW_SIZE {
-                        let mut buf = Vec::<u8>::new();
-                        let res = match self.file.read_to_end(&mut buf) {
-                            Ok(n) => { self.read_n += n; self.done = true; n },
-                            Err(_) => { self.read_err = true; 0 },
-                        };
-                        if res == 0 {
-                            return None;
-                        }
-                        self.bytes.push(buf);
-                        remaining = res;
-                    } else {
-                    // Old samples done, fetch new ones
-                        let mut buf = vec![0; WINDOW_SIZE];
-                        let res = match self.file.read_exact(buf.as_mut_slice()) {
-                            Ok(_) => { self.read_n += WINDOW_SIZE; WINDOW_SIZE },
-                            Err(_) => { 0 },
-                        };
-                        if res == 0 {
-                            return None;
-                        }
-                        self.bytes.push(buf);
-                        remaining = res;
+                    let res = match self.file.read(&mut self.buffer) {
+                        Ok(n) => { n },
+                        Err(_) => { self.read_err = true; 0 },
+                    };
+                    if res == 0 {
+                        return None;
                     }
+                    self.bytes.push(buf);
                 } else {
                     return None;
                 }
