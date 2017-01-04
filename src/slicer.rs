@@ -48,7 +48,7 @@ impl Slicer {
 }
 
 impl Iterator for Slicer {
-    type Item = Vec<u8>;
+    type Item = Box<Vec<u8>>;
     
     fn next(&mut self) -> Option<Self::Item> {
         let mut chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
@@ -62,7 +62,7 @@ impl Iterator for Slicer {
                 };
                 if res == 0 {
                     if chunk.len() != 0 && !self.read_err {
-                        return Some(chunk);
+                        return Some(Box::new(chunk));
                     }
                     return None;
                 }
@@ -80,7 +80,7 @@ impl Iterator for Slicer {
                 if self.window.len() == WINDOW_SIZE + 1 {
                     self.sum -= self.window.pop_front().unwrap() as u64;
                     if self.sum % MODULO == 0 {
-                        return Some(chunk);
+                        return Some(Box::new(chunk));
                     }
                 }
             }
