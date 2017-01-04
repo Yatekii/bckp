@@ -1,16 +1,15 @@
 mod slicer;
 mod hasher;
 
-use std::io::prelude::*;
-use std::fs::File;
-use std::io::SeekFrom;
-
 fn main(){
     //let mut f = File::open("testfile").expect("Testfile was not found.");
 
-    let s = slicer::Slicer::new("testfile");
+    let mut sum = 0;
+    let s = slicer::Slicer::new("testfile").unwrap();
     for slice in s {
-        println!("{:?}", slice);
+        println!("{:?}", slice.len());
+        sum += slice.len();
+        println!("{:?}", sum);
     }
 
 }
