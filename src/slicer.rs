@@ -51,9 +51,9 @@ impl Iterator for Slicer {
     type Item = Vec<u8>;
     
     fn next(&mut self) -> Option<Self::Item> {
+        let mut chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
         loop {
             let remaining = self.len - self.pos;
-            let mut chunk = Vec::<u8>::with_capacity(WINDOW_SIZE);
 
             if remaining == 0 {
                 let res = match self.file.read(&mut self.buffer) {
@@ -61,6 +61,9 @@ impl Iterator for Slicer {
                     Err(_) => { self.read_err = true; 0 },
                 };
                 if res == 0 {
+                    if chunk.len() != 0 && !self.read_err {
+                        return Some(chunk);
+                    }
                     return None;
                 }
             }
